@@ -1,0 +1,120 @@
+Run Junos shell commands via event script and send the output an FTP server
+
+####################################### PART-1 - FTP LOCATION CONFIGURATION ####################################################
+
+event-options{
+  destinations {
+    destination_name {
+      transfer-delay 5;
+      archive-sites {
+        "scp://username@example.com/test" password "$ABC123";             ## SECRET-DATA   ## can be ftp as well:  ftp://username@host:<port>url-path
+      }
+    }
+  }
+}
+
+######################################## CLI COMMANDS POLICY CONFIGURATION ###################################################
+
+event-options {
+  policy catch-nexthop-index-error1 {
+    events KERNEL;
+    attributes-match {
+      kernel.message matches "Nexthop index allocation failed: regular index space exhausted";
+      }
+      then {
+        execute-commands {
+          commands {
+            "show interfaces terse";
+            "show chassis alarms";
+            "other commands....";
+          }
+          output-filename sample_output_file;
+          output-format text;
+          destination destination_name;
+        }
+      }
+  }
+}
+
+############################################# PLACE EVENT SCRIPT UNDER THIS LOCATION #####################################################
+/var/db/scripts/event
+
+################################################## EVENT SCRIPT POLICY CONFIGURATION ################################################
+
+event-options {
+  policy catch-nexthop-index-error2 {
+    events KERNEL;
+    attributes-match {
+      kernel.message matches "Nexthop index allocation failed: regular index space exhausted";
+      }
+      then {
+        event-script display-output.slax {
+		arguments {
+			argument-name argument-value;
+		}
+          output-filename sample_output_file;
+          output-format text;
+          destination destination_name;
+        }
+      }
+  }
+}
+
+
+############################################# CONFIGURE EVENT SCRIPT #####################################################
+
+[edit system scripts event]
+user@host# set file display-output.slax
+
+
+####################################### EVENT SCRIPT display-output.slax ########################################
+
+version 1.0;
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+import "../import/junos.xsl";
+ 
+var $local = jcs:open();
+match / {
+    <event-script-results> {
+ 
+        var $rpc1 = {
+            <request-shell-execute> {
+                <command> "ifsmon –c";
+            }
+        }
+ 
+        var $rpc2 = {
+            <request-shell-execute> {
+                <command> "ifsmon –I";
+            }
+        }
+ 
+        var $rpc3 = {
+            <request-shell-execute> {
+                <command> "ifsmon –I –d";
+            }
+        }
+ 
+        var $rpc4 = {
+            <request-shell-execute> {
+                <command> "netstat –Ex";
+            }
+        }
+ 
+        var $result1 = jcs:execute($local,$rpc1);
+        var $result2 = jcs:execute($local,$rpc2);
+        var $result3 = jcs:execute($local,$rpc3);
+        var $result4 = jcs:execute($local,$rpc4);
+ 
+        expr jcs:output('************************ OUTPUT for ifsmon –c, ifsmon –I, ifsmon –I -d, netstat –Ex ***********************\n\n');
+        copy-of $result1;
+        copy-of $result2;
+        copy-of $result3;
+        copy-of $result4;
+        expr jcs:close($local);
+    }
+}
+
+##################################################################################################
