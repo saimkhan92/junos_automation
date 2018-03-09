@@ -19,7 +19,7 @@ with Device(host='10.10.10.11', user='root', password='Embe1mpls', mode='telnet'
                 except ConfigLoadError:
                         print("@@@@@ jmgmt0 interface does not exist {}".format(ConfigLoadError))
                 cu.load('set interfaces jmgmt0 unit 0 family inet dhcp', format='set')
-                cu.load('set routing-options static route 172.16.71.192/26 next-hop 172.16.71.193', format='set')
+                cu.load('set routing-options static route 0.0.0.0/0 next-hop 172.16.71.193', format='set')
                 print("@@@@@ Setting DHCP on jmgmt0.0 and default static route\n")
                 print("@@@@@ Comparing candidate configuration to the previously committed configuration\n")
                 #cu.pdiff()
