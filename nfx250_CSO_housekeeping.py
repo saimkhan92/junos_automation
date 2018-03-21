@@ -11,7 +11,21 @@ from optparse import OptionParser
 import csv
 import sys
 
-def jcp_load_factory(mgmt_ip,host_name):
+def zeroize_jdm(telnet_ip,port):
+        counter=0
+        while counter<3:
+                try:
+                        with Device(host=telnet_ip, user='root', password='Embe1mpls', mode='telnet', port=port, gather_facts=True) as dev:
+                                print("@@@@@system is being zeroized")
+                                data=dev.rpc.request_jdm_system_zeroize()
+                        return
+                except:
+                        counter+=1
+                        print("@@@@@ Retrying connecting via console")
+        print("@@@@@ Error in console connection\n@@@@@ Manually reconnect to the console, exit config/cli/shell, close connection, rerun script")
+        sys.exit()
+
+def jcp_push_config(mgmt_ip,host_name):
         try:
                 with Device(host=mgmt_ip, user='root', password='Embe1mpls') as dev:
                         print("@@@@@ Connected via SSH")
@@ -24,8 +38,30 @@ def jcp_load_factory(mgmt_ip,host_name):
                                 ret, got=ss.run('Embe1mpls')
                                 ret, got=ss.run('cli')
                                 ret, got=ss.run('edit')
+                                ret, got=ss.run('set protocols lldp interface all')
+                                command='set system host-name '+host_name
+                                ret, got=ss.run(command)
+                                ret, got=ss.run('commit and-quit')
+        except:
+                print("@@@@@ Exception in JCP block ")
+                return
+
+def jcp_load_factory(mgmt_ip,host_name):
+        try:
+                with Device(host=mgmt_ip, user='root', password='Embe1mpls') as dev:
+                        print("@@@@@ Connected via SSH")
+                        print(dev.facts)
+                        with StartShell(dev) as ss:
+                                print("@@@@@ Started shell")
+                                ret, got=ss.run('cli')
+                                print("@@@@@ Entering JCP")
+                                ret, got=ss.run('ssh vjunos0')
+                                ret, got=ss.run('Embe1mpls')    # Read the prompt
+                                print("@@@@@ $$$$$"+ret)
+                                ret, got=ss.run('cli')
+                                ret, got=ss.run('edit')
                                 ret, got=ss.run('load factory-default')
-                                ret, got=ss.run('set system root-authentication encrypted-password "$1$mEqXYfsV$qjC0dBBp3DYD7sWOU5tN/1"')       #Embe1mpls
+                                ret, got=ss.run('set system root-authentication encrypted-password "$1$mEqXYfsV$qjC0dBBp3DYD7sWOU5tN/1"')       #Embe1mpls #change to juniper123
                                 ret, got=ss.run('set protocols lldp interface all')
                                 command='set system host-name '+host_name
                                 ret, got=ss.run(command)
@@ -93,7 +129,8 @@ def set_mgmt_ip(telnet_ip,port):
 def main():
         logging.basicConfig(level=logging.INFO)
         parser = OptionParser(usage="usage: %prog [options]", version="%prog: version 1")
-        parser.add_option("-s", "--serialnumber", dest="sn", default="1", help="Serial number of DC nodes as found in /root/ztp_dir/nfx_lfd/files/console_addressing.csv eg. -s 1")
+        parser.add_option("-s", "--sequencenumber", dest="sn", default="1", help="Serial number of DC nodes as found in /root/ztp_dir/nfx_lfd/files/console_addressing.csv eg. -s 1")
+        parser.add_option("-z", "--zeroize", dest="zeroize", default="no", help="Zeroizes device eg. -z yes")
         (options, args) = parser.parse_args()
         sn=options.sn
         print(sn)
@@ -105,6 +142,9 @@ def main():
                         port=row["port"]
                         host_name=row["device_name"]
                         print("Console server details (IP/Port): "+telnet_ip+" / "+port)
+        if options.zeroize=="yes":
+                print("@@@@@ Calling function zeroize_jdm()")
+                zeroize_jdm(telnet_ip,port)
         mgmt_ip=set_mgmt_ip(telnet_ip,port)
         jdm_load_factory(mgmt_ip)
         mgmt_ip=set_mgmt_ip(telnet_ip,port)
