@@ -6,11 +6,13 @@ from jnpr.junos.utils.config import Config
 from threading import Thread
 import csv
 import os
+from subprocess import call
+import time
 
-config_devices(row):
+def config_devices(row):
         set_commands_filename=row["skyent_hostname"]+".txt"
         print("Executing thread for "+row["skyent_hostname"]+" "+row["mgmt_ip"])
-        response = os.system("ping -c 1 " + row["mgmt_ip"])
+	response = os.system("ping -c 1 "+row["mgmt_ip"])
         while True:
                 if response==0:
                         print("Device is up!!")
@@ -18,8 +20,7 @@ config_devices(row):
                 else:
                         print(row["skyent_hostname"]+" device is down")
                         time.sleep(20)
-			response = os.system("ping -c 1 " + row["mgmt_ip"])
-	
+			response = os.system("ping -c 1 "+row["mgmt_ip"])	
 	max_tries=25
 	while max_tries>0:
 		try:
@@ -39,14 +40,17 @@ config_devices(row):
 					print("Error in committing config")	
 					return False
 		except:
-			print("Waiting for netconf connection to be established. Tries left: "+str(maxtries))
-			maxtries=maxtries-1
+			print("Waiting for netconf connection to be established. Tries left: "+str(max_tries))
+			max_tries=max_tries-1
 			time.sleep(10)
 	print("Unable to establish netconf connection")
 	return False
 			
 def main():
-        csv_filename="host_to_mac_mapping.csv"
+        dhcpd_restart_command="sudo /etc/init.d/isc-dhcp-server restart"
+	dhcpd_return_code = call(dhcpd_restart_command, shell=True)
+	print(dhcpd_return_code)
+	csv_filename="host_to_mac_mapping.csv"
         device_data = csv.DictReader(open(csv_filename))
         for row in device_data:
                 t = Thread(target=config_devices, args=(row,))
