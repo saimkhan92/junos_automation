@@ -29,7 +29,6 @@ def config_devices(row):
 		try:	
 			with Device(host=row["mgmt_ip"], user="root", password="juniper1") as dev:
 				print("Established NETCONF connection to the device "+row["skyent_hostname"])
-				time.sleep(30)
 				fh=open(set_commands_filename,"r")
 				set_commands_list=fh.read().splitlines()
 				cu=Config(dev)
@@ -42,7 +41,7 @@ def config_devices(row):
 							return False
 				try:
 					cu.commit()
-					print("SUCCESSFUL COMMIT COMPLETED. DEVICE "+row["skyent_hostname"]+" SHOULD BE ONLINE IN SKY ENTERPRISE!!")
+					print("SUCCESS. DEVICE "+row["skyent_hostname"]+" SHOULD BE ONLINE IN SKY ENTERPRISE IN A MINUTE!!")
 					return True
 				except CommitError as err:
 					print("Emcountered a commit exception {}".format(err))
